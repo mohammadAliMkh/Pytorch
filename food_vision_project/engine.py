@@ -1,11 +1,14 @@
 
+import torch
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 def train_model(model:torch.nn.Module,
                 data:torch.utils.data.DataLoader,
                 loss_fn:torch.nn.Module,
                 optimizer:torch.optim.Optimizer,
                 device = device):
   '''
-    Train Model on Each Epoch and Return Accuracies and Losses for Each Batch
+    Train Model on Each Epoch and Return Train Accuracy and Loss
 
     args: 
         model: torch.nn.Module
