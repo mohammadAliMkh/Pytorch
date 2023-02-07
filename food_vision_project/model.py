@@ -1,3 +1,4 @@
+import torch
 
 Conv_Kernel_Size = 3
 Conv_Stride_Size = 1
