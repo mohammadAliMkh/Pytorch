@@ -50,7 +50,7 @@ def show_random_predict_images(model:torch.nn.Module,
     plt.imshow(img[i].permute(1 , 2 , 0))
     predict = class_names[torch.argmax(model(torch.unsqueeze(img[i] , dim = 0)) , dim = 1)]  
     plt.axis(False)
-    if (predict == label[i]):
+    if (predict == class_names[label[i]]):
       plt.title(predict , c = "green")
     else:
       plt.title(predict , c = "red")
