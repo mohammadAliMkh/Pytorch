@@ -17,7 +17,7 @@ def train_model(model:torch.nn.Module,
         optimizer: torch.optim
         device: device agnostic parameter (cpu or cuda)
 
-    outputs:
+    returns:
         acc: List of accuracies in each batch trained
         loss: List of losses in each batch traind
   '''
@@ -65,7 +65,7 @@ def test_model(model:torch.nn.Module,
         loss_fn: torch.nn.Module
         device: device agnostic parameter (cpu or cuda)
 
-    outputs:
+    returns:
         acc: List of test accuracies in each test batch
         loss: List of test losses in each test batch
   '''
