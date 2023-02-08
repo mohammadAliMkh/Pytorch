@@ -1,8 +1,10 @@
-
+import torch
 from tqdm.auto import tqdm
 from timeit import default_timer as timer
 from torch.utils.data import DataLoader
-from food_vision_project.engine import train_model , test_model
+from engine import train_model , test_model
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def train(model:torch.nn.Module,
           epochs:int,
