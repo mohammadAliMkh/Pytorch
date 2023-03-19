@@ -68,3 +68,51 @@ print("Train Loss:" , np.mean(results1["train_loss"]))
 print("Train Accurac:" , np.mean(results1["train_accuracy"]))
 print("Test Loss:" , np.mean(results1["test_loss"]))
 print("Test Accuracy:" ,np.mean(results1["test_accuracy"]))
+
+
+
+
+
+#create a method to plot train/test curves in a same range
+
+def plot_accuracy_and_loss_curves(results):
+  '''
+  plot accuracy and loss curves
+
+  Input:
+      results: a dictionary contains trian/test losses and accuracies for each epoch
+
+  output:
+      plot train/test losses and accuracies curves
+  '''
+
+  #normalize train/test accuracies and losses
+  train_accuracies = [a/100 for a in results["train_accuracy"]]
+  test_accuracies = [a/100 for a in results["test_accuracy"]]
+
+  train_loss_max, test_loss_max = max(results["train_loss"]) , max(results["test_loss"])
+
+  train_losses = [a/train_loss_max for a in results["train_loss"]]
+  test_losses = [a/test_loss_max for a in results["test_loss"]]
+
+
+  plt.figure(figsize = (15 , 7))
+
+  plt.subplot(1 , 2 , 1)
+  plt.plot(train_accuracies , label = "train_accuracy")
+  plt.plot(train_losses , label = "train_loss")
+  plt.xlabel("Epoch")
+  plt.legend()
+  plt.title("Train")
+
+  plt.subplot(1 , 2 , 2)
+  plt.plot(test_accuracies , label = "test_accuracy")
+  plt.plot(test_losses , label = "test_loss")
+  plt.xlabel("Epoch")
+  plt.title("Test")
+  plt.legend()
+
+  plt.show()
+
+
+plot_accuracy_and_loss_curves(results1)
