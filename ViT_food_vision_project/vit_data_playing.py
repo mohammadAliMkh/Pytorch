@@ -120,3 +120,29 @@
 #     axs[i , j].set_xticks([])
 #     axs[i , j].set_yticks([])
 #     axs[i , j].label_outer()
+
+
+
+# create Patching class befor adding class token and position embeddings
+# class Patching(torch.nn.Module):
+
+
+#   def __init__(self , in_channels = 3,
+#                out_channels = 768,
+#                kernel_size = 16,
+#                stride = 16,
+#                padding = 0):
+   
+#     super().__init__();
+#     self.patches = torch.nn.Conv2d(in_channels = in_channels,
+#                                    out_channels = out_channels,
+#                                    kernel_size = kernel_size,
+#                                    stride = stride,
+#                                    padding = padding)
+   
+#     self.flat_patches = torch.nn.Flatten(start_dim = 2 , end_dim = 3)
+
+
+
+#   def forward(self , x):
+#     return torch.permute(self.flat_patches(self.patches(x)) , (0 , 2 , 1))
