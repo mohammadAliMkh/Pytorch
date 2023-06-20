@@ -90,3 +90,33 @@
 # #show the result
 # image = torch.permute(images[0] , (1 , 2  , 0))
 # plot_patched_image(image , patch_size= 16)
+
+# create prepare method to make images in embedded form
+# def prepare_embed_input(image):
+
+#   '''prepare data embed for our transfomer in a apropriate shape
+
+#       input: image torch.utils.data.Dataloder
+
+#       output: array
+#   '''
+#   conv = torch.nn.Conv2d(in_channels = 3 , out_channels = 16 * 16 * 3 , kernel_size = 16 , stride = 16 , padding = 0)
+#   x = conv(torch.unsqueeze(torch.permute(image , (2 , 0 , 1)) , dim = 0))
+#   flat = torch.nn.Flatten(start_dim = 2 , end_dim = 3)
+#   return torch.permute(flat(x) , (0 , 2 , 1))
+
+
+
+# plot some embedded visually
+# fig , axs = plt.subplots(3 , 3 , figsize = (5 , 5 ), sharex = True , sharey = True)
+# n_fig = 0
+
+# for i in range( 3):
+#   for j in range(3):
+#     axs[i , j].imshow(torch.reshape(torch.squeeze(torch.sigmoid(flatten_input) , dim = 0)[n_fig] , shape = (16 , 16 , 3)).detach().numpy())
+#     n_fig = n_fig + 1
+#     axs[i , j].set_xlabel(j + 1)
+#     axs[i , j].set_ylabel(i + 1 , rotation = "horizontal" , ha = "right")
+#     axs[i , j].set_xticks([])
+#     axs[i , j].set_yticks([])
+#     axs[i , j].label_outer()
