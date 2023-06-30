@@ -13,6 +13,16 @@ import random
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision import transforms
+from torch.nn.modules.dropout import Dropout
+
+
+try:
+  import torchinfo
+except:
+  !pip install torchinfo
+from torchinfo import summary
+
+
 
 #load data
 test_data_path = "/content/Pytorch/ViT_food_vision_project/pizza_steak_sushi/test"
@@ -123,47 +133,107 @@ for i in range( 3):
 
 
 
-#create Patching class to create our transformer input
-class PatchEmbedding(torch.nn.Module):
+# create Patching class befor adding class token and position embeddings
+class Patching(torch.nn.Module):
 
 
-  def __init__(self ,in_heights = 224 , in_widths = 224 ,  in_channels = 3, patch_size = 16 , batch_size = 1):
+  def __init__(self , in_channels = 3,
+               out_channels = 768,
+               kernel_size = 16,
+               stride = 16,
+               padding = 0):
 
     super().__init__();
-
-    self.class_token = torch.nn.Parameter(
-        torch.rand(batch_size , 1 , patch_size**2 * in_channels),
-        requires_grad = True
-        )
-
-    self.position_embeds = torch.nn.Parameter(
-        torch.rand((batch_size, int(in_heights * in_widths / patch_size**2) + 1, patch_size**2 * in_channels)),
-        requires_grad = True)
-
     self.patches = torch.nn.Conv2d(in_channels = in_channels,
-                                   out_channels = patch_size * patch_size * in_channels,
-                                   kernel_size = patch_size,
-                                   stride = patch_size,
-                                   padding = 0)
+                                   out_channels = out_channels,
+                                   kernel_size = kernel_size,
+                                   stride = stride,
+                                   padding = padding)
 
     self.flat_patches = torch.nn.Flatten(start_dim = 2 , end_dim = 3)
 
 
+
   def forward(self , x):
+    return torch.permute(self.flat_patches(self.patches(x)) , (0 , 2 , 1))
 
-    patches = self.patches(x)
 
-    flat_patches = self.flat_patches(patches)
-    #print(flat_patches.shape)
-    flat_patches = torch.permute(flat_patches , (0 , 2 , 1))
-    #print(flat_patches.shape)
-    flat_patches_with_class_token = torch.cat((flat_patches , self.class_token) , dim = 1)
-    #print(flat_patches_with_class_token.shape)
-    flat_patches_with_class_token_and_position_embeds = flat_patches_with_class_token + self.position_embeds
-    #print(flat_patches_with_class_token_and_position_embeds.shape)
-    return flat_patches_with_class_token_and_position_embeds
+# create MSA Block of ViT
+class MultiHeadAttention(torch.nn.Module):
+  '''
+    create part 2 of the model ViT
 
-# test ou class and our first part of the ViT model
-patchify = PatchEmbedding(patch_size = 16)
-transformer_input = patchify(torch.unsqueeze(torch.permute(image , (2 , 0 , 1)) , dim = 0))
-transformer_input.shape
+    inputs:
+      embed_patch_size: int -> it is equal to dimension of your embedding
+      num_heads: int -> how many different heads you need
+      dropout: int -> 0 according to the article
+    outputs:
+      attn_output: it a tensor
+  '''
+  def __init__(self,
+               embed_patch_size:int = 768,
+               num_heads:int = 12,
+               dropout: int = 0):
+
+    super().__init__();
+
+    self.norm = torch.nn.LayerNorm(normalized_shape = embed_patch_size , device = device)
+
+    self.multi_head_attn = torch.nn.MultiheadAttention(embed_dim = embed_patch_size,
+                                                       num_heads = num_heads,
+                                                       dropout =dropout,
+                                                       batch_first = True)
+
+  def forward(self, x):
+
+    x = self.norm(x)
+    attn_output , _ = self.multi_head_attn(query = x , key = x , value = x , need_weights = False)
+    return attn_output
+
+# create MLP Block of ViT
+class MultiLayerPerceptron(torch.nn.Module):
+  '''
+    MLP block of the ViT model
+  '''
+
+  def __init__(self , embed_patch_size:int = 768 , MLP_size:int = 3072 , dropout:float = 0.0):
+    super().__init__();
+
+    self.norm = torch.nn.LayerNorm(normalized_shape = embed_patch_size, device = device)
+
+    self.multilayerperceptron = torch.nn.Sequential(
+        torch.nn.Linear(in_features = embed_patch_size, out_features= MLP_size),
+        torch.nn.GELU(),
+        torch.nn.Dropout(p = dropout),
+        torch.nn.Linear(in_features = MLP_size , out_features = embed_patch_size),
+
+    )
+
+
+  def forward(self, x):
+    x = self.norm(x)
+    x = self.multilayerperceptron(x)
+    return x
+
+
+# create Transformer Block of ViT Model
+class TransformerEncoder(torch.nn.Module):
+  '''
+    TransformerEncoder for Vit Model
+  '''
+
+  def __init__(self , embed_patch_size:int = 768, num_heads:int = 12, MLP_size:int = 3072, dropout: int = 0):
+
+    super().__init__()
+
+    self.msa = MultiHeadAttention(embed_patch_size = embed_patch_size , num_heads = num_heads , dropout = dropout)
+
+    self.mlp = MultiLayerPerceptron(embed_patch_size = embed_patch_size , MLP_size = MLP_size, dropout = dropout)
+
+  def forward(self, x):
+
+    x = self.msa(x) + x
+
+    x = self.mlp(x) + x
+
+    return x
