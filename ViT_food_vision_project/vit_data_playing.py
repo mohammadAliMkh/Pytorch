@@ -133,32 +133,57 @@ for i in range( 3):
 
 
 
-# create Patching class befor adding class token and position embeddings
-class Patching(torch.nn.Module):
+class PatchEmbedding(torch.nn.Module):
 
 
-  def __init__(self , in_channels = 3,
-               out_channels = 768,
-               kernel_size = 16,
-               stride = 16,
-               padding = 0):
+  def __init__(self ,
+               in_heights = 224 ,
+               in_widths = 224 ,
+               in_channels = 3,
+               patch_size = 16 ,
+               batch_size = 1 ,
+               dropout_mlp:float = 0.1):
 
     super().__init__();
+
+    self.dropout = torch.nn.Dropout(p = dropout_mlp)
+
+    self.class_token = torch.nn.Parameter(
+        torch.rand(batch_size , 1 , patch_size * patch_size * in_channels),
+        requires_grad = True
+        )
+
+    self.position_embeds = torch.nn.Parameter(
+        torch.rand((batch_size, int(in_heights * in_widths / patch_size**2) + 1, patch_size*patch_size*in_channels)),
+        requires_grad = True)
+
     self.patches = torch.nn.Conv2d(in_channels = in_channels,
-                                   out_channels = out_channels,
-                                   kernel_size = kernel_size,
-                                   stride = stride,
-                                   padding = padding)
+                                   out_channels = patch_size * patch_size * in_channels,
+                                   kernel_size = patch_size,
+                                   stride = patch_size,
+                                   padding = 0)
 
     self.flat_patches = torch.nn.Flatten(start_dim = 2 , end_dim = 3)
 
 
-
   def forward(self , x):
-    return torch.permute(self.flat_patches(self.patches(x)) , (0 , 2 , 1))
+
+    patches = self.patches(x)
+
+    flat_patches = self.flat_patches(patches)
+    #print(flat_patches.shape)
+    flat_patches = torch.permute(flat_patches , (0 , 2 , 1))
+    #print(flat_patches.shape)
+    flat_patches_with_class_token = torch.cat((flat_patches , self.class_token) , dim = 1)
+    #print(flat_patches_with_class_token.shape)
+    flat_patches_with_class_token_and_position_embeds = flat_patches_with_class_token + self.position_embeds
+    #dropout directly after adding positional- to patch embeddings
+    flat_patches_with_class_token_and_position_embeds = self.dropout(flat_patches_with_class_token_and_position_embeds)
+    #print(flat_patches_with_class_token_and_position_embeds.shape)
+    return flat_patches_with_class_token_and_position_embeds
 
 
-# create MSA Block of ViT
+
 class MultiHeadAttention(torch.nn.Module):
   '''
     create part 2 of the model ViT
@@ -173,7 +198,7 @@ class MultiHeadAttention(torch.nn.Module):
   def __init__(self,
                embed_patch_size:int = 768,
                num_heads:int = 12,
-               dropout: int = 0):
+               dropout_msa: int = 0):
 
     super().__init__();
 
@@ -181,7 +206,7 @@ class MultiHeadAttention(torch.nn.Module):
 
     self.multi_head_attn = torch.nn.MultiheadAttention(embed_dim = embed_patch_size,
                                                        num_heads = num_heads,
-                                                       dropout =dropout,
+                                                       dropout = dropout_msa,
                                                        batch_first = True)
 
   def forward(self, x):
@@ -190,13 +215,15 @@ class MultiHeadAttention(torch.nn.Module):
     attn_output , _ = self.multi_head_attn(query = x , key = x , value = x , need_weights = False)
     return attn_output
 
-# create MLP Block of ViT
+
+
+
 class MultiLayerPerceptron(torch.nn.Module):
   '''
     MLP block of the ViT model
   '''
 
-  def __init__(self , embed_patch_size:int = 768 , MLP_size:int = 3072 , dropout:float = 0.0):
+  def __init__(self , embed_patch_size:int = 768 , MLP_size:int = 3072 , dropout_mlp:float = 0.1):
     super().__init__();
 
     self.norm = torch.nn.LayerNorm(normalized_shape = embed_patch_size, device = device)
@@ -204,7 +231,7 @@ class MultiLayerPerceptron(torch.nn.Module):
     self.multilayerperceptron = torch.nn.Sequential(
         torch.nn.Linear(in_features = embed_patch_size, out_features= MLP_size),
         torch.nn.GELU(),
-        torch.nn.Dropout(p = dropout),
+        torch.nn.Dropout(p = dropout_mlp),
         torch.nn.Linear(in_features = MLP_size , out_features = embed_patch_size),
 
     )
@@ -216,19 +243,23 @@ class MultiLayerPerceptron(torch.nn.Module):
     return x
 
 
-# create Transformer Block of ViT Model
+
 class TransformerEncoder(torch.nn.Module):
   '''
     TransformerEncoder for Vit Model
   '''
 
-  def __init__(self , embed_patch_size:int = 768, num_heads:int = 12, MLP_size:int = 3072, dropout: int = 0):
+  def __init__(self , embed_patch_size:int = 768, 
+               num_heads:int = 12,
+               MLP_size:int = 3072,
+               dropout_msa: int = 0,
+               dropout_mlp:float = 0.1):
 
     super().__init__()
 
-    self.msa = MultiHeadAttention(embed_patch_size = embed_patch_size , num_heads = num_heads , dropout = dropout)
+    self.msa = MultiHeadAttention(embed_patch_size = embed_patch_size , num_heads = num_heads , dropout_msa = dropout_msa)
 
-    self.mlp = MultiLayerPerceptron(embed_patch_size = embed_patch_size , MLP_size = MLP_size, dropout = dropout)
+    self.mlp = MultiLayerPerceptron(embed_patch_size = embed_patch_size , MLP_size = MLP_size, dropout_mlp = dropout_mlp)
 
   def forward(self, x):
 
@@ -237,3 +268,57 @@ class TransformerEncoder(torch.nn.Module):
     x = self.mlp(x) + x
 
     return x
+
+
+# create ViT Model using befor classes
+class ViT(torch.nn.Module):
+  '''create ViT model
+  '''
+
+  def __init__(self ,
+               color_channel:int = 3,
+               image_width:int = 224,
+               image_height:int = 224,
+               patch_size:int = 16,
+               batch_size:int = 32,
+               num_heads:int = 12,
+               num_layers:int = 12,
+               MLP_size:int = 3072,
+               num_classes:int = 3,
+               dropout_mlp:float = 0.1,
+               dropout_msa:int = 0):
+    
+    super().__init__();
+
+    assert image_width % patch_size == 0 , "Image Size is not devidable with Path_size, use another patch or Image size"
+
+    self.patchify = PatchEmbedding(in_heights = image_height,
+                                   in_widths = image_width,
+                                   in_channels = color_channel,
+                                   patch_size = patch_size,
+                                   batch_size = batch_size,
+                                   dropout_mlp = dropout_mlp)
+    
+
+    self.transformer = TransformerEncoder(embed_patch_size = patch_size*patch_size*color_channel,
+                                          num_heads = num_heads,
+                                          MLP_size = MLP_size,
+                                          dropout_msa = dropout_msa,
+                                          dropout_mlp = dropout_mlp)
+    
+    self.transformer_layers = torch.nn.Sequential(*[
+        self.transformer for _ in range(num_layers)
+    ])
+
+    self.mlp_head = torch.nn.Sequential(
+        torch.nn.LayerNorm(normalized_shape = patch_size*patch_size*color_channel),
+        torch.nn.Linear(in_features = patch_size*patch_size*color_channel , out_features = num_classes)
+    )
+    
+    
+
+  def forward(self , x):
+    embeds = self.patchify(x)
+    transformers_output = self.transformer_layers(embeds)
+    output = self.mlp_head(transformers_output[: , 0])
+    return output
