@@ -133,6 +133,7 @@ for i in range( 3):
 
 
 
+# create Patching class befor adding class token and position embeddings
 class PatchEmbedding(torch.nn.Module):
 
 
@@ -322,3 +323,33 @@ class ViT(torch.nn.Module):
     transformers_output = self.transformer_layers(embeds)
     output = self.mlp_head(transformers_output[: , 0])
     return output
+
+
+
+
+
+# lets test our first trial
+vit_model = ViT()
+vit_model.to(device)
+
+optimizer = torch.optim.Adam(params = vit_model.parameters() , lr = 0.001)
+loss_fn = torch.nn.CrossEntropyLoss()
+
+results1 = train(vit_model,
+                 epochs = 5 ,
+                 train_data = train_dataLoader ,
+                 test_data = test_dataLoader ,
+                 loss_fn = loss_fn ,
+                 optimizer = optimizer,
+                 device = device)
+
+# plot results1 train and test/train loss or test/train accuracy
+plt.figure(figsize = (20 , 7))
+plt.subplot(1 , 2 , 1)
+plt.plot(results1["test_loss"])
+plt.plot(results1["train_loss"])
+plt.legend(["test_loss" , "train_loss"])
+plt.subplot(1 , 2 , 2)
+plt.plot(results1["test_accuracy"])
+plt.plot(results1["train_accuracy"])
+plt.legend(["test_accuracy" , "train_accuracy"])
