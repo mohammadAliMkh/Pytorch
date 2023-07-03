@@ -76,6 +76,6 @@ def predict_image_from_wild(image_url:str, model:torch.nn.Module, transformer:tr
   predict = class_names[torch.argmax(model(torch.unsqueeze(img_tensor , dim = 0)) , dim = 1)]
 
   plt.figure(figsize = (10 , 7))
-  plt.imshow(img_tensor.permute(1 , 2 , 0))
+  plt.imshow(img)
   plt.axis(False)
   plt.title(predict)
