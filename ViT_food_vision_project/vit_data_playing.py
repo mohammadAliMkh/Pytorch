@@ -296,7 +296,7 @@ class ViT(torch.nn.Module):
     self.patchify = PatchEmbedding(in_heights = image_height,
                                    in_widths = image_width,
                                    in_channels = color_channel,
-                                   batch_size = batch_size,
+                                   patch_size = patch_size,
                                    dropout_mlp = dropout_mlp)
 
 
@@ -383,7 +383,7 @@ train_dataLoader_pretrained = DataLoader(train_dataset_pretrained,
                               drop_last = True)
 
 summary(vit_model_pretrained , (32 , 3 , 224 , 224) ,
-        col_names = ["input_size" , "output_size" , "num_params" , "trainable"], 
+        col_names = ["input_size" , "output_size" , "num_params" , "trainable"],
         col_width = 20)
 
 
