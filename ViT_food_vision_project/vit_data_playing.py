@@ -142,7 +142,6 @@ class PatchEmbedding(torch.nn.Module):
                in_widths = 224 ,
                in_channels = 3,
                patch_size = 16 ,
-               batch_size = 1 ,
                dropout_mlp:float = 0.1):
 
     super().__init__();
@@ -150,12 +149,12 @@ class PatchEmbedding(torch.nn.Module):
     self.dropout = torch.nn.Dropout(p = dropout_mlp)
 
     self.class_token = torch.nn.Parameter(
-        torch.rand(batch_size , 1 , patch_size * patch_size * in_channels),
+        torch.rand(1 , 1 , patch_size * patch_size * in_channels),
         requires_grad = True
         )
 
     self.position_embeds = torch.nn.Parameter(
-        torch.rand((batch_size, int(in_heights * in_widths / patch_size**2) + 1, patch_size*patch_size*in_channels)),
+        torch.rand((1, int(in_heights * in_widths / patch_size**2) + 1, patch_size*patch_size*in_channels)),
         requires_grad = True)
 
     self.patches = torch.nn.Conv2d(in_channels = in_channels,
@@ -175,9 +174,11 @@ class PatchEmbedding(torch.nn.Module):
     #print(flat_patches.shape)
     flat_patches = torch.permute(flat_patches , (0 , 2 , 1))
     #print(flat_patches.shape)
-    flat_patches_with_class_token = torch.cat((flat_patches , self.class_token) , dim = 1)
+    class_token = self.class_token.expand(x.shape[0] , -1 , -1)
+    flat_patches_with_class_token = torch.cat((flat_patches , class_token) , dim = 1)
     #print(flat_patches_with_class_token.shape)
-    flat_patches_with_class_token_and_position_embeds = flat_patches_with_class_token + self.position_embeds
+    position_embeds = self.position_embeds.expand(x.shape[0] , -1 , -1)
+    flat_patches_with_class_token_and_position_embeds = flat_patches_with_class_token + position_embeds
     #dropout directly after adding positional- to patch embeddings
     flat_patches_with_class_token_and_position_embeds = self.dropout(flat_patches_with_class_token_and_position_embeds)
     #print(flat_patches_with_class_token_and_position_embeds.shape)
@@ -281,7 +282,6 @@ class ViT(torch.nn.Module):
                image_width:int = 224,
                image_height:int = 224,
                patch_size:int = 16,
-               batch_size:int = 32,
                num_heads:int = 12,
                num_layers:int = 12,
                MLP_size:int = 3072,
@@ -296,7 +296,6 @@ class ViT(torch.nn.Module):
     self.patchify = PatchEmbedding(in_heights = image_height,
                                    in_widths = image_width,
                                    in_channels = color_channel,
-                                   patch_size = patch_size,
                                    batch_size = batch_size,
                                    dropout_mlp = dropout_mlp)
 
