@@ -250,7 +250,7 @@ class TransformerEncoder(torch.nn.Module):
     TransformerEncoder for Vit Model
   '''
 
-  def __init__(self , embed_patch_size:int = 768, 
+  def __init__(self , embed_patch_size:int = 768,
                num_heads:int = 12,
                MLP_size:int = 3072,
                dropout_msa: int = 0,
@@ -288,7 +288,7 @@ class ViT(torch.nn.Module):
                num_classes:int = 3,
                dropout_mlp:float = 0.1,
                dropout_msa:int = 0):
-    
+
     super().__init__();
 
     assert image_width % patch_size == 0 , "Image Size is not devidable with Path_size, use another patch or Image size"
@@ -299,14 +299,14 @@ class ViT(torch.nn.Module):
                                    patch_size = patch_size,
                                    batch_size = batch_size,
                                    dropout_mlp = dropout_mlp)
-    
+
 
     self.transformer = TransformerEncoder(embed_patch_size = patch_size*patch_size*color_channel,
                                           num_heads = num_heads,
                                           MLP_size = MLP_size,
                                           dropout_msa = dropout_msa,
                                           dropout_mlp = dropout_mlp)
-    
+
     self.transformer_layers = torch.nn.Sequential(*[
         self.transformer for _ in range(num_layers)
     ])
@@ -315,8 +315,8 @@ class ViT(torch.nn.Module):
         torch.nn.LayerNorm(normalized_shape = patch_size*patch_size*color_channel),
         torch.nn.Linear(in_features = patch_size*patch_size*color_channel , out_features = num_classes)
     )
-    
-    
+
+
 
   def forward(self , x):
     embeds = self.patchify(x)
@@ -353,3 +353,64 @@ plt.subplot(1 , 2 , 2)
 plt.plot(results1["test_accuracy"])
 plt.plot(results1["train_accuracy"])
 plt.legend(["test_accuracy" , "train_accuracy"])
+
+
+
+from torchvision.models.vision_transformer import ViT_B_16_Weights , vit_b_16
+
+vit_weights = ViT_B_16_Weights.DEFAULT
+vit_model_pretrained = vit_b_16(weights = vit_weights)
+
+for params in vit_model_pretrained.parameters():
+  params.requires_grad = False
+
+vit_transformer = vit_weights.transforms()
+vit_model_pretrained.heads = torch.nn.Sequential(torch.nn.Linear(in_features = 768 , out_features = 3))
+
+test_dataset_pretrained = datasets.ImageFolder(test_data_path , transform = vit_transformer)
+train_dataset_pretrained = datasets.ImageFolder(train_data_path , transform = vit_transformer)
+
+test_dataLoader_pretrained = DataLoader(test_dataset_pretrained,
+                             batch_size = BATCH_SIZE,
+                             shuffle = False,
+                             num_workers = torch.cuda.device_count(),
+                             drop_last=True) #drop_last will delete last batch if not in 32 size
+
+
+train_dataLoader_pretrained = DataLoader(train_dataset_pretrained,
+                              batch_size = BATCH_SIZE,
+                              shuffle = True,
+                              num_workers = torch.cuda.device_count(),
+                              drop_last = True)
+
+summary(vit_model_pretrained , (32 , 3 , 224 , 224) ,
+        col_names = ["input_size" , "output_size" , "num_params" , "trainable"], 
+        col_width = 20)
+
+
+loss_fn = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(params = vit_model_pretrained.parameters() , lr = 0.001)
+
+#train the pretrained model with our data
+results2 = train(vit_model_pretrained ,
+                 epochs = 10 ,
+                 train_data = train_dataLoader_pretrained ,
+                 test_data = test_dataLoader_pretrained ,
+                 loss_fn = loss_fn ,
+                 optimizer = optimizer ,
+                 device = device)
+
+
+#plot loss and accuracy curves
+plt.figure(figsize = (20 , 7))
+plt.subplot(1 , 2 , 1)
+plt.plot(results2["test_loss"])
+plt.plot(results2["train_loss"])
+plt.legend(["test_loss" , "train_loss"])
+plt.subplot(1 , 2 , 2)
+plt.plot(results2["test_accuracy"])
+plt.plot(results2["train_accuracy"])
+plt.legend(["test_accuracy" , "train_accuracy"])
+
+#save our best model for further usage
+torch.save(vit_model_pretrained.state_dict() , "/content/Pytorch/ViT_food_vision_project/saved_models/vit_model_pretrained.pth")
