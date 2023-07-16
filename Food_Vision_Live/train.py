@@ -62,5 +62,6 @@ def train(model:torch.nn.Module,
   result_values["test_accuracy"] = test_accuracy_values
   result_values["train_loss"] = train_loss_values
   result_values["train_accuracy"] = train_accuracy_values
+  result_values["process_time"] = round(process_time , 2)
 
   return result_values
