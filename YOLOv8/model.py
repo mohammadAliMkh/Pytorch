@@ -235,12 +235,12 @@ class DFL(nn.Module):
 
 
 class Head(nn.Module):
-    def __init__(self,version,ch=16,num_classes=80):
+    def __init__(self,version,ch=16,num_classes=90):
 
         super().__init__()
         self.ch=ch                          # dfl channels
         self.coordinates=self.ch*4          # number of bounding box coordinates 
-        self.nc=num_classes                 # 80 for COCO
+        self.nc=num_classes                 # 90 for COCO
         self.no=self.coordinates+self.nc    # number of outputs per anchor box
 
         self.stride=torch.zeros(3)          # strides computed during build
