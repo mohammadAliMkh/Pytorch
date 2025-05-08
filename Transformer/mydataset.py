@@ -19,12 +19,12 @@ class BilingualDataset(Dataset):
         self.pad_token = torch.tensor([tokenizer_tgt.token_to_id("[PAD]")], dtype=torch.int64)
 
     def __len__(self):
-        return len(self.ds)
+        return len(self.ds['source'])
 
     def __getitem__(self, idx):
-        src_target_pair = self.ds[idx]
-        src_text = src_target_pair['translation'][self.src_lang]
-        tgt_text = src_target_pair['translation'][self.tgt_lang]
+        #src_target_pair = self.ds['source'][idx]
+        src_text = self.ds['source'][idx]
+        tgt_text = self.ds['targets'][idx][0]
 
         # Transform the text into tokens
         enc_input_tokens = self.tokenizer_src.encode(src_text).ids
